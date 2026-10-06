@@ -251,6 +251,7 @@ def parse_quartile(value: Any) -> Optional[str]:
     return None
 
 
+
 def output_columns(config: TransformConfig) -> List[str]:
     if config.include_eissn_column:
         return OUTPUT_COLUMNS_WITH_EISSN
