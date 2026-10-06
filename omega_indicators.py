@@ -126,16 +126,17 @@ def detect_column(
     configured: Optional[str] = None,
 ) -> Optional[str]:
     """
-    Detect source column by explicit configured name or by alias.
+    Detect source column by explicit configured name, falling back to aliases.
     """
-    if configured:
-        for col in df.columns:
-            if str(col).strip().lower() == str(configured).strip().lower():
-                return col
-        return None
-
     lookup = {normalize_header(col): col for col in df.columns}
 
+    # 1. Try the configured value first (if provided)
+    if configured:
+        configured_lower = str(configured).strip().lower()
+        if configured_lower in lookup:
+            return lookup[configured_lower]
+
+    # 2. Fall back to aliases if configured is missing or not found in the file
     for alias in aliases:
         if alias in lookup:
             return lookup[alias]
