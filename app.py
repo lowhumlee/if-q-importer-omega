@@ -7,7 +7,6 @@ from omega_indicators import (
     transform_incodes,
 )
 
-
 st.set_page_config(
     page_title="OMEGA PSIR Journal Indicators Generator",
     page_icon=":books:",
@@ -21,11 +20,9 @@ st.caption(
     "or invent indicator values."
 )
 
-
 def none_if_blank(value: str):
     value = value.strip() if value else ""
     return value if value else None
-
 
 uploaded_file = st.file_uploader(
     "Upload InCites export",
@@ -39,30 +36,20 @@ if uploaded_file is not None:
         st.header("Settings")
 
         if sheet_names:
-            selected_sheet = st.selectbox(
-                "Excel sheet",
-                sheet_names,
-                index=0,
-            )
+            selected_sheet = st.selectbox("Excel sheet", sheet_names, index=0)
         else:
             selected_sheet = 0
 
         include_eissn_column = st.checkbox(
             "Include eISSN column",
             value=True,
-            help=(
-                "Recommended by OMEGA documentation. If disabled, output uses "
-                "the sample layout with issn only, and eISSN-only records are skipped."
-            ),
+            help="Recommended by OMEGA documentation. If disabled, output uses the sample layout with issn only."
         )
 
         hardcode_ifwos_svalue = st.checkbox(
             "Hardcode svalue='2' for IFWoS",
             value=True,
-            help=(
-                "When enabled, every IFWoS row receives svalue='2', matching "
-                "the provided sample file and project instruction."
-            ),
+            help="When enabled, every IFWoS row receives svalue='2'."
         )
 
         ifwos_svalue = st.text_input(
@@ -71,35 +58,18 @@ if uploaded_file is not None:
             disabled=not hardcode_ifwos_svalue,
         )
 
-        sort_output = st.checkbox(
-            "Sort output deterministically",
-            value=True,
-            help="Sort by identifier, systemName, and year.",
-        )
+        sort_output = st.checkbox("Sort output deterministically", value=True)
 
-        with st.expander("Advanced column mapping"):
-            issn_col = st.text_input("ISSN column", value="ISSN")
-            eissn_col = st.text_input("eISSN column", value="eISSN")
-            year_col = st.text_input("Year column", value="Publication Year")
-            jif_col = st.text_input(
-                "Journal Impact Factor column",
-                value="Journal Impact Factor",
-            )
-            quartile_col = st.text_input(
-                "JIF Quartile column",
-                value="JIF Quartile",
-            )
-            title_col = st.text_input(
-                "Journal title column",
-                value="Name",
-            )
+        with st.expander("Advanced column mapping (Leave blank for auto-detect)"):
+            # Left blank to rely on the smart alias fallback in omega_indicators.py
+            issn_col = st.text_input("ISSN column", value="")
+            eissn_col = st.text_input("eISSN column", value="")
+            year_col = st.text_input("Year column", value="")
+            jif_col = st.text_input("Journal Impact Factor column", value="")
+            quartile_col = st.text_input("JIF Quartile column", value="")
+            title_col = st.text_input("Journal title column", value="")
 
-    st.info("Configure options in the sidebar, then click Generate.")
-
-    generate_clicked = st.button(
-        "Generate import file",
-        type="primary",
-    )
+    generate_clicked = st.button("Generate import file", type="primary")
 
     if generate_clicked:
         try:
@@ -123,24 +93,22 @@ if uploaded_file is not None:
             st.session_state.result = result
             st.session_state.source_preview = source_df.head(50)
 
-        except Exception as exc:
-            st.error(f"Transformation failed: {exc}")
+        except Exception as e:
+            st.error(f"Transformation failed: {e}")
+            st.exception(e) # Shows the exact traceback in the UI
 
     if "result" in st.session_state:
         result = st.session_state.result
         summary = result.summary
 
         st.subheader("Summary")
-
         col1, col2, col3, col4 = st.columns(4)
-
         col1.metric("Input rows", summary["input_rows"])
         col2.metric("Output rows", summary["output_rows"])
         col3.metric("IFWoS rows", summary["ifwos_rows"])
         col4.metric("JIFQuartile rows", summary["jif_quartile_rows"])
 
         col5, col6, col7, col8 = st.columns(4)
-
         col5.metric("Warnings", summary["warnings"])
         col6.metric("Duplicate source rows", summary["duplicate_source_rows"])
         col7.metric("Conflicts", summary["conflicts"])
@@ -150,7 +118,6 @@ if uploaded_file is not None:
         report_csv = result.report_df.to_csv(sep=";", index=False)
 
         st.subheader("Downloads")
-
         download_col1, download_col2 = st.columns(2)
 
         with download_col1:
@@ -170,13 +137,7 @@ if uploaded_file is not None:
             )
 
         tab_import, tab_report, tab_missing, tab_duplicates, tab_source = st.tabs(
-            [
-                "Import preview",
-                "Validation report",
-                "Missing / unmatched",
-                "Duplicates / conflicts",
-                "Source preview",
-            ]
+            ["Import preview", "Validation report", "Missing / unmatched", "Duplicates / conflicts", "Source preview"]
         )
 
         with tab_import:
@@ -185,38 +146,18 @@ if uploaded_file is not None:
 
         with tab_report:
             report_df = result.report_df
-
             if report_df.empty:
                 st.success("No validation issues detected.")
             else:
                 report_types = ["All"] + sorted(report_df["type"].unique().tolist())
-                selected_type = st.selectbox(
-                    "Filter by issue type",
-                    report_types,
-                    key="report_type_filter",
-                )
-
-                filtered_report = report_df
-
-                if selected_type != "All":
-                    filtered_report = report_df[report_df["type"] == selected_type]
-
+                selected_type = st.selectbox("Filter by issue type", report_types, key="report_type_filter")
+                filtered_report = report_df if selected_type == "All" else report_df[report_df["type"] == selected_type]
                 st.dataframe(filtered_report, use_container_width=True)
 
         with tab_missing:
             missing_report = result.report_df[
-                result.report_df["type"].isin(
-                    [
-                        "missing_journal",
-                        "unmatched_journal",
-                        "missing_indicator",
-                        "invalid_year",
-                        "invalid_jif",
-                        "invalid_quartile",
-                    ]
-                )
+                result.report_df["type"].isin(["missing_journal", "unmatched_journal", "invalid_year", "invalid_jif", "invalid_quartile"])
             ]
-
             if missing_report.empty:
                 st.success("No missing or unmatched records detected.")
             else:
@@ -224,15 +165,8 @@ if uploaded_file is not None:
 
         with tab_duplicates:
             duplicate_report = result.report_df[
-                result.report_df["type"].isin(
-                    [
-                        "duplicate_issn",
-                        "duplicate_import_row",
-                        "conflicting_value",
-                    ]
-                )
+                result.report_df["type"].isin(["duplicate_issn", "duplicate_import_row", "conflicting_value"])
             ]
-
             if duplicate_report.empty:
                 st.success("No duplicate or conflicting records detected.")
             else:
@@ -241,12 +175,8 @@ if uploaded_file is not None:
         with tab_source:
             if "source_preview" in st.session_state:
                 st.write("First 50 rows of the uploaded source file.")
-                st.dataframe(
-                    st.session_state.source_preview,
-                    use_container_width=True,
-                )
+                st.dataframe(st.session_state.source_preview, use_container_width=True)
             else:
                 st.info("No source preview available.")
-
 else:
-    st.info("Upload an InCites Excel export to begin.")
+    st.info("Upload an InCites Excel or CSV export to begin.")
